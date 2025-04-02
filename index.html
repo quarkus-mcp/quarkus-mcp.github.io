@@ -143,7 +143,19 @@
     
     <div class="config-form">
         <div class="select-group">
-            <label for="mcpServer">1. Select MCP Server</label>
+            <label for="mcpClient">1. Select MCP Client</label>
+            <div class="description">Choose your preferred MCP client</div>
+            <select id="mcpClient">
+                <option value="">Choose a client...</option>
+                <option value="claude">Claude Desktop - AI-powered desktop assistant</option>
+                <option value="cursor">Cursor - AI-first code editor</option>
+                <option value="vscode">Visual Studio Code (Insiders) - Popular code editor</option>
+                <option value="quarkus">Quarkus LangChain4j - Java AI development framework</option>
+            </select>
+        </div>
+
+        <div class="select-group">
+            <label for="mcpServer">2. Select MCP Server</label>
             <div class="description">Choose which MCP server functionality you need</div>
             <select id="mcpServer">
                 <option value="">Choose a server...</option>
@@ -154,24 +166,12 @@
         </div>
 
         <div class="select-group">
-            <label for="launchMethod">2. Select Launch Method</label>
+            <label for="launchMethod">3. Select Launch Method</label>
             <div class="description">Choose how you want to run the MCP server</div>
             <select id="launchMethod">
-                <option value="">Choose a launch method...</option>
                 <option value="jbang">JBang - Run Java applications with zero installation</option>
-                <option value="uvx">UVX - Universal Version Manager</option>
+                <option value="uvx">UVX - UV tool for Python</option>
                 <option value="npm">NPM - Node Package Manager</option>
-            </select>
-        </div>
-
-        <div class="select-group">
-            <label for="mcpClient">3. Select MCP Client</label>
-            <div class="description">Choose your preferred MCP client</div>
-            <select id="mcpClient">
-                <option value="">Choose a client...</option>
-                <option value="claude">Claude Desktop - AI-powered desktop assistant</option>
-                <option value="cursor">Cursor - AI-first code editor</option>
-                <option value="vscode">Visual Studio Code (Insiders) - Popular code editor</option>
             </select>
         </div>
     </div>
@@ -234,6 +234,14 @@
         }
     }
 }`
+            },
+            quarkus: {
+                filename: 'application.properties',
+                template: (server, command, args) => {
+                    // Convert the command and args into comma-separated format
+                    const parts = [command, ...args.split(' ')];
+                    return `quarkus.langchain4j.mcp.${server}.command=${parts.join(',')}`;
+                }
             }
         };
 
@@ -248,13 +256,14 @@
             const launchMethod = document.getElementById('launchMethod').value;
             const client = document.getElementById('mcpClient').value;
 
-            if (server && launchMethod && client) {
-                const output = document.getElementById('output');
-                const configOutput = document.getElementById('configOutput');
-                const outputTitle = document.getElementById('outputTitle');
-                const installationInstructions = document.getElementById('installationInstructions');
-                const installationSteps = document.getElementById('installationSteps');
-                
+            const output = document.getElementById('output');
+            const configOutput = document.getElementById('configOutput');
+            const outputTitle = document.getElementById('outputTitle');
+            const installationInstructions = document.getElementById('installationInstructions');
+            const installationSteps = document.getElementById('installationSteps');
+            
+            // Show configuration if we have at least a server and launch method
+            if (server && launchMethod) {
                 let command, args;
                 switch(launchMethod) {
                     case 'jbang':
@@ -271,11 +280,25 @@
                         break;
                 }
 
-                const config = configs[client];
-                outputTitle.textContent = `Configuration for ${config.filename}`;
-                configOutput.textContent = config.template(server, command, args);
+                // If client is selected, show client-specific config
+                if (client) {
+                    const config = configs[client];
+                    outputTitle.textContent = `Configuration for ${config.filename}`;
+                    configOutput.textContent = config.template(server, command, args);
+                } else {
+                    // Show generic config when no client is selected
+                    outputTitle.textContent = 'Generic Configuration';
+                    configOutput.textContent = JSON.stringify({
+                        mcpServers: {
+                            [server]: {
+                                command: command,
+                                args: [args]
+                            }
+                        }
+                    }, null, 2);
+                }
                 
-                // Show installation instructions
+                // Show installation instructions for launch method
                 installationInstructions.style.display = 'block';
                 installationSteps.innerHTML = `
                     <p><strong>To install ${launchMethod.toUpperCase()}:</strong></p>
@@ -284,6 +307,9 @@
 
                 output.style.display = 'block';
                 Prism.highlightAll();
+            } else {
+                // Hide output if we don't have minimum required fields
+                output.style.display = 'none';
             }
         }
 
